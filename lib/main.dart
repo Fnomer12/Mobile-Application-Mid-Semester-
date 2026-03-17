@@ -13,6 +13,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Midsem Exam App',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        scaffoldBackgroundColor: const Color(0xFFF6F7FB),
+        useMaterial3: true,
+      ),
       home: const LoginScreen(),
     );
   }

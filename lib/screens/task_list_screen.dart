@@ -16,7 +16,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
   final TextEditingController titleController = TextEditingController();
   final TextEditingController courseCodeController = TextEditingController();
-
   DateTime? selectedDate;
 
   @override
@@ -68,6 +67,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
         ];
       });
+      await saveTasks();
     }
   }
 
@@ -85,18 +85,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
     await prefs.setStringList('tasks', taskStrings);
   }
 
-  Future<void> pickDate() async {
+  Future<void> pickDate(StateSetter setDialogState) async {
     final DateTime now = DateTime.now();
-
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: now,
       firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
+      lastDate: DateTime(2035),
     );
 
     if (picked != null) {
-      setState(() {
+      setDialogState(() {
         selectedDate = picked;
       });
     }
@@ -110,40 +109,44 @@ class _TaskListScreenState extends State<TaskListScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text('Add New Task'),
-          content: StatefulBuilder(
-            builder: (context, setDialogState) {
-              return SingleChildScrollView(
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              title: const Text('Add New Task'),
+              content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
                       controller: titleController,
-                      decoration: const InputDecoration(labelText: 'Task Title'),
+                      decoration: InputDecoration(
+                        labelText: 'Task Title',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
+                    const SizedBox(height: 14),
                     TextField(
                       controller: courseCodeController,
-                      decoration: const InputDecoration(labelText: 'Course Code'),
+                      decoration: InputDecoration(
+                        labelText: 'Course Code',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 10),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final DateTime now = DateTime.now();
-                        final DateTime? picked = await showDatePicker(
-                          context: context,
-                          initialDate: now,
-                          firstDate: DateTime(2020),
-                          lastDate: DateTime(2030),
-                        );
-
-                        if (picked != null) {
-                          setDialogState(() {
-                            selectedDate = picked;
-                          });
-                        }
-                      },
-                      child: const Text('Pick Due Date'),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => pickDate(setDialogState),
+                        icon: const Icon(Icons.calendar_month),
+                        label: const Text('Pick Due Date'),
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -153,38 +156,35 @@ class _TaskListScreenState extends State<TaskListScreen> {
                     ),
                   ],
                 ),
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (titleController.text.isNotEmpty &&
-                    courseCodeController.text.isNotEmpty &&
-                    selectedDate != null) {
-                  setState(() {
-                    tasks.add(
-                      Task(
-                        title: titleController.text,
-                        courseCode: courseCodeController.text,
-                        dueDate: selectedDate!,
-                      ),
-                    );
-                  });
-
-                  await saveTasks();
-                  Navigator.pop(context);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (titleController.text.isNotEmpty &&
+                        courseCodeController.text.isNotEmpty &&
+                        selectedDate != null) {
+                      setState(() {
+                        tasks.add(
+                          Task(
+                            title: titleController.text,
+                            courseCode: courseCodeController.text,
+                            dueDate: selectedDate!,
+                          ),
+                        );
+                      });
+                      await saveTasks();
+                      if (mounted) Navigator.pop(context);
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -197,41 +197,107 @@ class _TaskListScreenState extends State<TaskListScreen> {
     await saveTasks();
   }
 
+  int get completedTasks => tasks.where((task) => task.isComplete).length;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Task List'),
+        title: const Text('Task List Screen'),
+        centerTitle: true,
       ),
-      body: ListView.builder(
-        itemCount: tasks.length,
-        itemBuilder: (context, index) {
-          final task = tasks[index];
-
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: ListTile(
-              title: Text(task.title),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Course Code: ${task.courseCode}'),
-                  Text(
-                    'Due Date: ${DateFormat('dd/MM/yyyy').format(task.dueDate)}',
-                  ),
-                ],
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Colors.indigo, Colors.blueAccent],
               ),
-              trailing: Checkbox(
-                value: task.isComplete,
-                onChanged: (value) => toggleTask(index, value),
-              ),
+              borderRadius: BorderRadius.circular(18),
             ),
-          );
-        },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Task Summary',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Completed: $completedTasks / ${tasks.length}',
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: tasks.length,
+              itemBuilder: (context, index) {
+                final task = tasks[index];
+
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    leading: CircleAvatar(
+                      backgroundColor:
+                          task.isComplete ? Colors.green : Colors.indigo,
+                      child: Icon(
+                        task.isComplete ? Icons.check : Icons.book,
+                        color: Colors.white,
+                      ),
+                    ),
+                    title: Text(
+                      task.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        decoration: task.isComplete
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                      ),
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Course Code: ${task.courseCode}'),
+                          Text(
+                            'Due Date: ${DateFormat('dd/MM/yyyy').format(task.dueDate)}',
+                          ),
+                        ],
+                      ),
+                    ),
+                    trailing: Checkbox(
+                      value: task.isComplete,
+                      onChanged: (value) => toggleTask(index, value),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: showAddTaskDialog,
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Add Task'),
       ),
     );
   }
